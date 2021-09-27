@@ -7,3 +7,13 @@ services:
       dockerfile: ./Dockerfile
     volumes:
       - ./:/scraping-app
+  splash:
+    restart: always
+    image: scrapinghub/splash
+    container_name: ds-splash
+    ports:
+      - "5023:5023"
+      - "8050:8050"
+      - "8051:8051"
+    environment:
+      VIRTUAL_HOST: ds-splash.localhost

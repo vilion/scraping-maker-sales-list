@@ -88,11 +88,20 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     fake_form.action = "/corpinfo/corporate/detail"
     detail_page = agent.submit(fake_form)
 
-    category = detail_page.at_css("dt:contains('業種１')").next_sibling.next_sibling.text
-    category2 = detail_page.at_css("dt:contains('業種２')").next_sibling.next_sibling.text
-    category = category + ", " + category2 unless category2 == "-"
-    category3 = detail_page.at_css("dt:contains('業種３')").next_sibling.next_sibling.text
-    category = category + ", " + category3 unless category3 == "-"
+    category_list = []
+    unless detail_page.at_css("dt:contains('業種１')").nil?
+      cate1 = detail_page.at_css("dt:contains('業種１')").next_sibling.next_sibling.text
+      category_list.push(cate1) unless cate1 == "-"
+    end
+    unless detail_page.at_css("dt:contains('業種２')").nil?
+      category2 = detail_page.at_css("dt:contains('業種２')").next_sibling.next_sibling.text
+      category_list.push(category2) unless category2 == "-"
+    end
+    unless detail_page.at_css("dt:contains('業種３')").nil?
+      category3 = detail_page.at_css("dt:contains('業種３')").next_sibling.next_sibling.text
+      category_list.push(category3) unless category3 == "-"
+    end
+    category = category_list.empty? ? "-" : category_list.join(' - ')
 
     address_header = table_element.at_css("th:contains('所在地')")
     address = address_header.nil? ? "" : address_header.next_sibling.text 
@@ -105,11 +114,11 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
 
     file.puts([corporate_name, corporate_number, category, address, tel_no, capital, representative].to_csv)
 
-    count += 1
+    #count += 1
 
-    if count == 30
-      break
-    end
+    #if count == 15
+    #  break
+    #end
 
   end
 end

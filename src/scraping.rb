@@ -4,6 +4,7 @@ require 'mechanize'
 require 'pry'
 
 agent = Mechanize.new
+agent.user_agent_alias = "Windows Mozilla"
 
 # 法人検索があるため不要 orz
 #code_name_map = {
@@ -38,14 +39,138 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     #corporate_number = "6140001005714"
     #city = "神戸市中央区"
     #corporate_name = "株式会社神戸製鋼所"
-    page = agent.get("https://unisonas.com/search.php")
+
+    page = nil
+    try_count = 0
+    begin
+      page = agent.get("https://unisonas.com/search.php")
+    rescue Mechanize::ResponseCodeError => e
+     case e.response_code
+      when “404”
+        puts “  caught Net::HTTPNotFound !”
+        next # ページが見付からないときは次へ
+      when “502”
+        puts “  caught Net::HTTPBadGateway !”
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry # 上手くアクセスできないときはもう1回！
+      else
+        puts “  caught Excepcion !” + e.response_code
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry
+      end
+    rescue  Net::HTTPInternalError      
+      puts “  caught Excepcion !”
+      next
+      #next if try_count == 4
+      #try_count += 1
+      #retry
+    rescue Net::HTTPForbidden
+      puts “  caught Excepcion !”
+      next
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Exception
+      puts “  caught Excepcion !”
+      next
+      #next if try_count == 4
+      #try_count += 1
+      #retry
+    end
+    next if page.nil?
+
     hyogo_title = page.at_css("h3.title:contains('兵庫県')")
     detail_root = hyogo_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
     city_link = detail_root.at_css("a:contains('#{city}')")
-    city_page = agent.get("https://unisonas.com/#{city_link.attributes["href"].value}")
+    next if city_link.nil?
+    city_page = nil
+    try_count = 0
+    begin
+      city_page = agent.get("https://unisonas.com/#{city_link.attributes["href"].value}")
+    rescue Mechanize::ResponseCodeError => e
+     case e.response_code
+      when “404”
+        puts “  caught Net::HTTPNotFound !”
+        next # ページが見付からないときは次へ
+      when “502”
+        puts “  caught Net::HTTPBadGateway !”
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry # 上手くアクセスできないときはもう1回！
+      else
+        puts “  caught Excepcion !” + e.response_code
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry
+      end
+    rescue  Net::HTTPInternalError      
+      puts “  caught Excepcion !”
+      next
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Net::HTTPForbidden
+      puts “  caught Excepcion !”
+      next
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Exception
+      puts “  caught Excepcion !”
+      next
+      #next if try_count == 4
+      #try_count += 1
+      #retry
+    end
+
+    next if city_page.nil?
     corporate_link = city_page.at_css("a:contains('#{corporate_name}')")
     next if corporate_link.nil?
-    uni_page = agent.get("https://unisonas.com/#{corporate_link.attributes["href"].value[3..]}")
+
+    uni_page = nil
+    try_count = 0
+    begin
+      uni_page = agent.get("https://unisonas.com/#{corporate_link.attributes["href"].value[3..]}")
+    rescue Mechanize::ResponseCodeError => e
+     case e.response_code
+      when “404”
+        puts “  caught Net::HTTPNotFound !”
+        next # ページが見付からないときは次へ
+      when “502”
+        puts “  caught Net::HTTPBadGateway !”
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry # 上手くアクセスできないときはもう1回！
+      else
+        puts “  caught Excepcion !” + e.response_code
+        next
+        #next if try_count == 4
+        #try_count += 1
+        #retry
+      end
+    rescue Net::HTTPInternalError      
+      puts “  caught Excepcion !”
+      next
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Net::HTTPForbidden
+      puts “  caught Excepcion !”
+      next
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Exception
+      puts “  caught Excepcion !”
+      next
+      #next if try_count == 4
+      #try_count += 1
+      #retry
+    end
+
+    next if uni_page.nil?
 
     # ユニゾナス 詳細ページ以降
     table_element = uni_page.at('table.statsDay')
@@ -65,43 +190,143 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     #official_url = site.uri.to_s
 
     # 業種取得 中小企業なんちゃらの法人検索
-    category_search_page = agent.get("https://tdb.smrj.go.jp/corpinfo/corporate/search#o")
-    search_form = category_search_page.form_with(id: 'corpSearchForm_id')
-    search_form.radiobutton_with(name: 'searchMethod').value = "1"
-    search_form.corporateNumber = corporate_number
-    result_page = agent.submit(search_form)
-    result_form = result_page.form_with(action: "/corpinfo/corporate/search")
-    result_csrf = result_form.field_with(id: "csrfToken_id").value
-    node = {}
-    # Create a fake form
-    class << node
-      def search(*args); []; end
+    category_search_page = nil
+    try_count = 0
+    begin
+      category_search_page = agent.get("https://tdb.smrj.go.jp/corpinfo/corporate/search#o")
+    rescue Mechanize::ResponseCodeError => e
+     case e.response_code
+      when “404”
+        puts “  caught Net::HTTPNotFound !”
+      when “502”
+        puts “  caught Net::HTTPBadGateway !”
+        #try_count += 1
+        #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+      else
+        puts “  caught Excepcion !” + e.response_code
+        #try_count += 1
+        #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+      end
+    rescue Net::HTTPInternalError      
+      puts “  caught Excepcion !”
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Net::HTTPForbidden
+      puts “  caught Excepcion !”
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+    rescue Exception
+      puts “  caught Excepcion !”
+      #try_count += 1
+      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     end
-    node["method"] = "POST"
-    #node["enctype"] = "application/x-www-form-urlencoded"
-    node["id"] = "openPage"
-    node["name"] = "pageForm"
-    fake_form = Mechanize::Form.new(node)
-    fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "name" => "corpnum"}, corporate_number)
-    fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "id" => "csrfToken_id", "name" => "_csrf"}, result_csrf)
-    fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "name" => "no-login"}, "")
-    fake_form.action = "/corpinfo/corporate/detail"
-    detail_page = agent.submit(fake_form)
 
+    category = "-"
     category_list = []
-    unless detail_page.at_css("dt:contains('業種１')").nil?
-      cate1 = detail_page.at_css("dt:contains('業種１')").next_sibling.next_sibling.text
-      category_list.push(cate1) unless cate1 == "-"
+    if !category_search_page.nil?
+      search_form = category_search_page.form_with(id: 'corpSearchForm_id')
+      if !search_form.nil?
+        search_form.radiobutton_with(name: 'searchMethod').value = "1"
+        search_form.corporateNumber = corporate_number
+
+        result_page = nil
+        try_count = 0
+        begin
+          result_page = agent.submit(search_form)
+        rescue Mechanize::ResponseCodeError => e
+         case e.response_code
+          when “404”
+            puts “  caught Net::HTTPNotFound !”
+          when “502”
+            puts “  caught Net::HTTPBadGateway !”
+            #try_count += 1
+            #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+          else
+            puts “  caught Excepcion !” + e.response_code
+            #try_count += 1
+            #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+          end
+        rescue Net::HTTPInternalError      
+          puts “  caught Excepcion !”
+          #try_count += 1
+          #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+        rescue Net::HTTPForbidden
+          puts “  caught Excepcion !”
+          #try_count += 1
+          #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+        rescue Exception
+          puts “  caught Excepcion !”
+          #try_count += 1
+          #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+        end
+        if !result_page.nil?
+          result_form = result_page.form_with(action: "/corpinfo/corporate/search")
+          result_csrf = result_form.field_with(id: "csrfToken_id").value
+          node = {}
+          # Create a fake form
+          class << node
+            def search(*args); []; end
+          end
+          node["method"] = "POST"
+          #node["enctype"] = "application/x-www-form-urlencoded"
+          node["id"] = "openPage"
+          node["name"] = "pageForm"
+          fake_form = Mechanize::Form.new(node)
+          fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "name" => "corpnum"}, corporate_number)
+          fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "id" => "csrfToken_id", "name" => "_csrf"}, result_csrf)
+          fake_form.fields << Mechanize::Form::Field.new({"type" => "hidden", "name" => "no-login"}, "")
+          fake_form.action = "/corpinfo/corporate/detail"
+
+          detail_page = nil
+          try_count = 0
+          begin
+            detail_page = agent.submit(fake_form)
+          rescue Mechanize::ResponseCodeError => e
+           case e.response_code
+            when “404”
+              puts “  caught Net::HTTPNotFound !”
+            when “502”
+              puts “  caught Net::HTTPBadGateway !”
+              #try_count += 1
+              #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+            else
+              puts “  caught Excepcion !” + e.response_code
+              #try_count += 1
+              #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+            end
+          rescue  Net::HTTPInternalError      
+            puts “  caught Excepcion !”
+            #try_count += 1
+            #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+          rescue Net::HTTPForbidden
+            puts “  caught Excepcion !”
+            #try_count += 1
+            #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+          rescue Exception
+            puts “  caught Excepcion !”
+            #try_count += 1
+            #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+          end
+
+          category_list = []
+          if !detail_page.nil?
+            unless detail_page.at_css("dt:contains('業種１')").nil?
+              cate1 = detail_page.at_css("dt:contains('業種１')").next_sibling.next_sibling.text
+              category_list.push(cate1) unless cate1 == "-"
+            end
+            unless detail_page.at_css("dt:contains('業種２')").nil?
+              category2 = detail_page.at_css("dt:contains('業種２')").next_sibling.next_sibling.text
+              category_list.push(category2) unless category2 == "-"
+            end
+            unless detail_page.at_css("dt:contains('業種３')").nil?
+              category3 = detail_page.at_css("dt:contains('業種３')").next_sibling.next_sibling.text
+              category_list.push(category3) unless category3 == "-"
+            end
+          end
+          category = category_list.empty? ? "-" : category_list.join(' - ')
+        end
+      end
     end
-    unless detail_page.at_css("dt:contains('業種２')").nil?
-      category2 = detail_page.at_css("dt:contains('業種２')").next_sibling.next_sibling.text
-      category_list.push(category2) unless category2 == "-"
-    end
-    unless detail_page.at_css("dt:contains('業種３')").nil?
-      category3 = detail_page.at_css("dt:contains('業種３')").next_sibling.next_sibling.text
-      category_list.push(category3) unless category3 == "-"
-    end
-    category = category_list.empty? ? "-" : category_list.join(' - ')
 
     address_header = table_element.at_css("th:contains('所在地')")
     address = address_header.nil? ? "" : address_header.next_sibling.text 

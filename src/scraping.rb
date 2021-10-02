@@ -8,10 +8,10 @@ agent.user_agent_alias = "Windows Mozilla"
 
 # 法人検索から forbidden orz
 code_name_map = {
-  "19": "武器製造業", "20": "食料品・飼料・飲料製造業", "21": "たばこ製造業", "22": "繊維工業（衣服,その他の繊維製品を除く）", "22": "繊維工業（衣服,その他の繊維製品を除く）",
-  "23": "衣服・その他の繊維製品製造業", "24": "木材・木製品製造業（家具を除く）", "25": "家具・装備品製造業", "26": "パルプ・紙・紙加工品製造業", "27": "出版・印刷・同関連産業",
-  "28": "化学工業", "29": "石油製品・石炭製品製造業", "30": "ゴム製品製造業", "31": "皮革・同製品・毛皮製造業", "32": "窯業・土石製品製造業", "33": "鉄鋼業,非鉄金属製造業",
-  "34": "金属製品製造業", "35": "一般機械器具製造業", "36": "電気機械器具製造業", "37": "輸送用機械器具製造業", "38": "精密機械・医療機械器具製造業", "39": "その他の製造業"
+  "19"=> "武器製造業", "20"=> "食料品・飼料・飲料製造業", "21"=> "たばこ製造業", "22"=> "繊維工業（衣服,その他の繊維製品を除く）",
+  "23"=> "衣服・その他の繊維製品製造業", "24"=> "木材・木製品製造業（家具を除く）", "25"=> "家具・装備品製造業", "26"=> "パルプ・紙・紙加工品製造業", "27"=> "出版・印刷・同関連産業",
+  "28"=> "化学工業", "29"=> "石油製品・石炭製品製造業", "30"=> "ゴム製品製造業", "31"=> "皮革・同製品・毛皮製造業", "32"=> "窯業・土石製品製造業", "33"=> "鉄鋼業,非鉄金属製造業",
+  "34"=> "金属製品製造業", "35"=> "一般機械器具製造業", "36"=> "電気機械器具製造業", "37"=> "輸送用機械器具製造業", "38"=> "精密機械・医療機械器具製造業", "39"=> "その他の製造業"
 }
 
 
@@ -64,11 +64,20 @@ code_name_map = {
 #}
 
 count = 0
-File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
+File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
   file.print("\xEF\xBB\xBF")  #bomを作成
   file.puts(['会社名', '法人番号', '業種', '住所', '電話番号', '資本金', '代表氏名'].to_csv)
 
-  CSV.foreach("corporate-number-list/28_hyogo_all_20210831.csv").with_index(1) do |row, ln|
+  file_name = ""
+  if ARGV[0] == "福岡県"
+    file_name = "40_fukuoka_all_20210930.csv"
+  elsif ARGV[0] == "兵庫県"
+    file_name = "28_hyogo_all_20210831.csv"
+  elsif ARGV[0] == "千葉県"
+    file_name = "12_chiba_all_20210930.csv"
+  end
+
+  CSV.foreach("corporate-number-list/#{file_name}").with_index(1) do |row, ln|
     corporate_number = row[1]
     city = row[10]
     corporate_name = row[6]
@@ -82,82 +91,104 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     begin
       page = agent.get("https://unisonas.com/search.php")
     rescue Mechanize::ResponseCodeError => e
+        sleep 1
+        retry
      case e.response_code
       when “404”
-        puts “  caught Net::HTTPNotFound !”
-        next # ページが見付からないときは次へ
+        #puts “  caught Net::HTTPNotFound !”
+        #next # ページが見付からないときは次へ
+        #File.write('error.txt', "#{ln}\n")
+        #break
+        next
       when “502”
-        puts “  caught Net::HTTPBadGateway !”
-        next
+        #puts “  caught Net::HTTPBadGateway !”
+        #next
         #next if try_count == 4
         #try_count += 1
-        #retry # 上手くアクセスできないときはもう1回！
+        sleep 1
+        retry # 上手くアクセスできないときはもう1回！
+        #File.write('error.txt', "#{ln}\n")
+        #break
       else
-        puts “  caught Excepcion !” + e.response_code
-        next
+        #puts “  caught Excepcion !” + e.response_code
+        #next
         #next if try_count == 4
         #try_count += 1
-        #retry
+        sleep 1
+        retry
       end
     rescue  Net::HTTPInternalError      
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #next if try_count == 4
       #try_count += 1
       #retry
     rescue Net::HTTPForbidden
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #try_count += 1
       #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Exception
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #next if try_count == 4
       #try_count += 1
-      #retry
     end
     next if page.nil?
 
-    hyogo_title = page.at_css("h3.title:contains('兵庫県')")
-    detail_root = hyogo_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
+    prefecture_title = page.at_css("h3.title:contains('#{ARGV[0]}')")
+    detail_root = prefecture_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
     city_link = detail_root.at_css("a:contains('#{city}')")
     next if city_link.nil?
     city_page = nil
-    try_count = 0
+    #try_count = 0
     begin
       city_page = agent.get("https://unisonas.com/#{city_link.attributes["href"].value}")
     rescue Mechanize::ResponseCodeError => e
+        sleep 1
+        retry
      case e.response_code
       when “404”
-        puts “  caught Net::HTTPNotFound !”
+        #puts “  caught Net::HTTPNotFound !”
         next # ページが見付からないときは次へ
       when “502”
-        puts “  caught Net::HTTPBadGateway !”
-        next
+        #puts “  caught Net::HTTPBadGateway !”
+        #next
         #next if try_count == 4
         #try_count += 1
-        #retry # 上手くアクセスできないときはもう1回！
+        sleep 1
+        retry # 上手くアクセスできないときはもう1回！
       else
-        puts “  caught Excepcion !” + e.response_code
-        next
+        #puts “  caught Excepcion !” + e.response_code
+        #next
         #next if try_count == 4
         #try_count += 1
-        #retry
+        sleep 1
+        retry
       end
     rescue  Net::HTTPInternalError      
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #try_count += 1
       #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Net::HTTPForbidden
-      puts “  caught Excepcion !”
+      #puts “  caught Excepcion !”
       next
       #try_count += 1
       #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Exception
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #next if try_count == 4
       #try_count += 1
       #retry
@@ -172,36 +203,47 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     begin
       uni_page = agent.get("https://unisonas.com/#{corporate_link.attributes["href"].value[3..]}")
     rescue Mechanize::ResponseCodeError => e
+        sleep 1
+        retry
      case e.response_code
       when “404”
-        puts “  caught Net::HTTPNotFound !”
+        #puts “  caught Net::HTTPNotFound !”
         next # ページが見付からないときは次へ
       when “502”
-        puts “  caught Net::HTTPBadGateway !”
-        next
+        #puts “  caught Net::HTTPBadGateway !”
+        #next
         #next if try_count == 4
         #try_count += 1
-        #retry # 上手くアクセスできないときはもう1回！
+        sleep 1
+        retry # 上手くアクセスできないときはもう1回！
       else
-        puts “  caught Excepcion !” + e.response_code
-        next
+        sleep 1
+        retry
+        #puts “  caught Excepcion !” + e.response_code
+        #next
         #next if try_count == 4
         #try_count += 1
         #retry
       end
     rescue Net::HTTPInternalError      
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #try_count += 1
       #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Net::HTTPForbidden
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #try_count += 1
       #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Exception
-      puts “  caught Excepcion !”
-      next
+      sleep 1
+      retry
+      #puts “  caught Excepcion !”
+      #next
       #next if try_count == 4
       #try_count += 1
       #retry
@@ -215,7 +257,7 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     next if code_header.nil?
     code_elem = code_header.next_sibling
     main_code = code_elem.text[0..1].to_i
-    next unless 19 <= main_code && main_code <= 39
+    next unless is_category_valid?(ARGV[1], main_code)
     
     # URL 取得。要 google 課金
     #form.q = row[6]
@@ -246,4 +288,16 @@ File.open("兵庫県内の製造業の会社リスト.csv", 'w') do |file|
     #end
 
   end
+end
+
+
+def is_category_valid?(valid_category, target_category)
+  if valid_category == "maker"
+    return 19 <= target_category && target_category <= 39
+  end
+
+  if valid_category == "logistics"
+    return 61 <= target_category && target_category <= 67
+  end
+
 end

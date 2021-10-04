@@ -8,11 +8,25 @@ agent.user_agent_alias = "Windows Mozilla"
 
 # 法人検索から forbidden orz
 code_name_map = {
+  # 製造業
   "19"=> "武器製造業", "20"=> "食料品・飼料・飲料製造業", "21"=> "たばこ製造業", "22"=> "繊維工業（衣服,その他の繊維製品を除く）",
   "23"=> "衣服・その他の繊維製品製造業", "24"=> "木材・木製品製造業（家具を除く）", "25"=> "家具・装備品製造業", "26"=> "パルプ・紙・紙加工品製造業", "27"=> "出版・印刷・同関連産業",
   "28"=> "化学工業", "29"=> "石油製品・石炭製品製造業", "30"=> "ゴム製品製造業", "31"=> "皮革・同製品・毛皮製造業", "32"=> "窯業・土石製品製造業", "33"=> "鉄鋼業,非鉄金属製造業",
-  "34"=> "金属製品製造業", "35"=> "一般機械器具製造業", "36"=> "電気機械器具製造業", "37"=> "輸送用機械器具製造業", "38"=> "精密機械・医療機械器具製造業", "39"=> "その他の製造業"
+  "34"=> "金属製品製造業", "35"=> "一般機械器具製造業", "36"=> "電気機械器具製造業", "37"=> "輸送用機械器具製造業", "38"=> "精密機械・医療機械器具製造業", "39"=> "その他の製造業",
+  # 物流・倉庫
+  "61"=> "鉄道業", "63"=> "道路貨物運送業", "64"=> "水運業", "65"=> "航空運輸業", "66"=> "倉庫業", "67"=> "運輸に付帯するサービス業",
 }
+
+
+def is_category_valid?(valid_category, target_category)
+  if valid_category == "製造業"
+    return 19 <= target_category && target_category <= 39
+  end
+
+  if valid_category == "物流・倉庫業"
+    return 61 == target_category || (63 <= target_category && target_category <= 67)
+  end
+end
 
 
 #code_name_map = {
@@ -64,7 +78,7 @@ code_name_map = {
 #}
 
 count = 0
-File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
+File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
   file.print("\xEF\xBB\xBF")  #bomを作成
   file.puts(['会社名', '法人番号', '業種', '住所', '電話番号', '資本金', '代表氏名'].to_csv)
 
@@ -75,9 +89,15 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
     file_name = "28_hyogo_all_20210831.csv"
   elsif ARGV[0] == "千葉県"
     file_name = "12_chiba_all_20210930.csv"
+  elsif ARGV[0] == "群馬県"
+    file_name = "10_gunma_all_20210930.csv"
+  elsif ARGV[0] == "埼玉県"
+    file_name = "11_saitama_all_20210930.csv"
   end
 
   CSV.foreach("corporate-number-list/#{file_name}").with_index(1) do |row, ln|
+
+    next if !ARGV[2].nil? && ARGV[2].to_i > ln
     corporate_number = row[1]
     city = row[10]
     corporate_name = row[6]
@@ -117,14 +137,6 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
         sleep 1
         retry
       end
-    rescue  Net::HTTPInternalError      
-      sleep 1
-      retry
-      #puts “  caught Excepcion !”
-      #next
-      #next if try_count == 4
-      #try_count += 1
-      #retry
     rescue Net::HTTPForbidden
       sleep 1
       retry
@@ -148,8 +160,10 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
     next if city_link.nil?
     city_page = nil
     #try_count = 0
+    link_url = city_link.attributes["href"].nil? ? (city_link.attributes["hre"].nil? ? nil : city_link.attributes["hre"].value) : city_link.attributes["href"].value
+    next if link_url.nil?
     begin
-      city_page = agent.get("https://unisonas.com/#{city_link.attributes["href"].value}")
+      city_page = agent.get("https://unisonas.com/#{link_url}")
     rescue Mechanize::ResponseCodeError => e
         sleep 1
         retry
@@ -172,13 +186,6 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
         sleep 1
         retry
       end
-    rescue  Net::HTTPInternalError      
-      sleep 1
-      retry
-      #puts “  caught Excepcion !”
-      #next
-      #try_count += 1
-      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Net::HTTPForbidden
       #puts “  caught Excepcion !”
       next
@@ -225,13 +232,6 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
         #try_count += 1
         #retry
       end
-    rescue Net::HTTPInternalError      
-      sleep 1
-      retry
-      #puts “  caught Excepcion !”
-      #next
-      #try_count += 1
-      #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
     rescue Net::HTTPForbidden
       sleep 1
       retry
@@ -290,14 +290,3 @@ File.open("#{ARGV[0]}内の製造業の会社リスト.csv", 'w') do |file|
   end
 end
 
-
-def is_category_valid?(valid_category, target_category)
-  if valid_category == "maker"
-    return 19 <= target_category && target_category <= 39
-  end
-
-  if valid_category == "logistics"
-    return 61 <= target_category && target_category <= 67
-  end
-
-end

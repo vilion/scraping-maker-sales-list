@@ -3,3 +3,4 @@ bundle
 *csv
 .DS_Store
 *.pdf
+*vendor*

@@ -113,6 +113,68 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     file_name = "33_okayama_all_20210930.csv"
   elsif ARGV[0] == "三重県"
     file_name = "24_mie_all_20210930.csv"
+  elsif ARGV[0] == "福井県"
+    file_name = "18_fukui_all_20210930.csv"
+  elsif ARGV[0] == "福島県"
+    file_name = "07_fukushima_all_20210930.csv"
+  elsif ARGV[0] == "高知県"
+    file_name = "39_kochi_all_20210930.csv"
+  elsif ARGV[0] == "愛媛県"
+    file_name = "38_ehime_all_20210930.csv"
+  elsif ARGV[0] == "徳島県"
+    file_name = "36_tokushima_all_20210930.csv"
+  elsif ARGV[0] == "東京都"
+    file_name = "13_tokyo_all_20210930.csv"
+  elsif ARGV[0] == "香川県"
+    file_name = "37_kagawa_all_20210930.csv"
+  elsif ARGV[0] == "広島県"
+    file_name = "34_hiroshima_all_20210930.csv"
+  elsif ARGV[0] == "大阪府"
+    file_name = "27_osaka_all_20210930.csv"
+  elsif ARGV[0] == "新潟県"
+    file_name = "15_niigata_all_20210930.csv"
+  elsif ARGV[0] == "和歌山県"
+    file_name = "30_wakayama_all_20210930.csv"
+  elsif ARGV[0] == "奈良県"
+    file_name = "29_nara_all_20210930.csv"
+  elsif ARGV[0] == "沖縄県"
+    file_name = "47_okinawa_all_20210930.csv"
+  elsif ARGV[0] == "鹿児島県"
+    file_name = "46_kagoshima_all_20210930.csv"
+  elsif ARGV[0] == "宮崎県"
+    file_name = "45_miyazaki_all_20210930.csv"
+  elsif ARGV[0] == "大分県"
+    file_name = "44_oita_all_20210930.csv"
+  elsif ARGV[0] == "佐賀県"
+    file_name = "41_saga_all_20210930.csv"
+  elsif ARGV[0] == "長崎県"
+    file_name = "42_nagasaki_all_20210930.csv"
+  elsif ARGV[0] == "熊本県"
+    file_name = "43_kumamoto_all_20210930.csv"
+  elsif ARGV[0] == "北海道"
+    file_name = "01_hokkaido_all_20210930.csv"
+  elsif ARGV[0] == "青森県"
+    file_name = "02_aomori_all_20210930.csv"
+  elsif ARGV[0] == "岩手県"
+    file_name = "03_iwate_all_20210930.csv"
+  elsif ARGV[0] == "山形県"
+    file_name = "06_yamagata_all_20210930.csv"
+  elsif ARGV[0] == "長野県"
+    file_name = "20_nagano_all_20210930.csv"
+  elsif ARGV[0] == "秋田県"
+    file_name = "05_akita_all_20210930.csv"
+  elsif ARGV[0] == "宮城県"
+    file_name = "04_miyagi_all_20210930.csv"
+  elsif ARGV[0] == "島根県"
+    file_name = "32_shimane_all_20210930.csv"
+  elsif ARGV[0] == "鳥取県"
+    file_name = "31_tottori_all_20210930.csv"
+  elsif ARGV[0] == "山口県"
+    file_name = "35_yamaguchi_all_20210930.csv"
+  elsif ARGV[0] == "静岡県"
+    file_name = "22_shizuoka_all_20210930.csv"
+  elsif ARGV[0] == "山梨県"
+    file_name = "19_yamanashi_all_20210930.csv"
   end
 
   CSV.foreach("corporate-number-list/#{file_name}").with_index(1) do |row, ln|
@@ -121,6 +183,7 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     corporate_number = row[1]
     city = row[10]
     corporate_name = row[6]
+    next if corporate_name == "西東京市" or corporate_name == "瑞穂町" or corporate_name == "日の出町" or corporate_name == "利島村" or corporate_name == "青梅" or corporate_name == "箱根ケ崎財産区"
 
     #corporate_number = "6140001005714"
     #city = "神戸市中央区"
@@ -175,7 +238,13 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     next if page.nil?
 
     prefecture_title = page.at_css("h3.title:contains('#{ARGV[0]}')")
-    detail_root = prefecture_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
+    detail_root = nil
+    if ARGV[0] == "東京都"
+      detail_root = prefecture_title.parent.next_sibling.next_sibling
+    else
+      detail_root = prefecture_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
+    end
+
     city_link = detail_root.at_css("a:contains('#{city}')")
     next if city_link.nil?
     city_page = nil
@@ -185,8 +254,8 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     begin
       city_page = agent.get("https://unisonas.com/#{link_url}")
     rescue Mechanize::ResponseCodeError => e
-        sleep 1
-        retry
+      sleep 1
+      retry
      case e.response_code
       when “404”
         #puts “  caught Net::HTTPNotFound !”
@@ -273,12 +342,22 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
 
     # ユニゾナス 詳細ページ以降
     table_element = uni_page.at('table.statsDay')
-    code_header = table_element.at_css("th:contains('産業分類主業コード')")
-    next if code_header.nil?
-    code_elem = code_header.next_sibling
-    main_code = code_elem.text[0..1].to_i
-    next unless is_category_valid?(ARGV[1], main_code)
-    
+
+    if ARGV[0] == "東京都"
+      category_header = table_element.at_css("th:contains('カテゴリ')")
+      next if category_header.nil?
+      category_elem = category_header.next_sibling
+      category = category_elem.text
+      next unless category.include?(ARGV[1] == "製造業" ? "製造" : "流通")
+    else 
+      code_header = table_element.at_css("th:contains('産業分類主業コード')")
+      next if code_header.nil?
+      code_elem = code_header.next_sibling
+      main_code = code_elem.text[0..1].to_i
+      next unless is_category_valid?(ARGV[1], main_code)
+      category = code_name_map[code_elem.text[0..1]]
+    end
+
     # URL 取得。要 google 課金
     #form.q = row[6]
     #form.q = "神戸製鋼 site:unisonas.com"
@@ -288,18 +367,18 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
 
     #official_url = site.uri.to_s
 
-    category = code_name_map[code_elem.text[0..1]]
-
     address_header = table_element.at_css("th:contains('所在地')")
-    address = address_header.nil? ? "" : address_header.next_sibling.text 
+    address = address_header.nil? ? "" : address_header.next_sibling.text
+    next unless address.include?(ARGV[0])
     telno_header = table_element.at_css("th:contains('電話番号')")
-    tel_no = telno_header.nil? ? "" : telno_header.next_sibling.text 
+    tel_no = telno_header.nil? ? "" : telno_header.next_sibling.text
     capital_header = table_element.at_css("th:contains('資本金')")
-    capital = capital_header.nil? ? "" : capital_header.next_sibling.text 
+    capital = capital_header.nil? ? "" : capital_header.next_sibling.text
     representative_header = table_element.at_css("th:contains('代表者')")
-    representative = representative_header.nil? ? "" : representative_header.next_sibling.text 
+    representative = representative_header.nil? ? "" : representative_header.next_sibling.text
 
     file.puts([corporate_name, corporate_number, category, address, tel_no, capital, representative].to_csv)
+    file.flush()
 
     #count += 1
 
@@ -309,4 +388,3 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
 
   end
 end
-

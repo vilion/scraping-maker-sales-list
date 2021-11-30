@@ -175,6 +175,8 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     file_name = "22_shizuoka_all_20210930.csv"
   elsif ARGV[0] == "山梨県"
     file_name = "19_yamanashi_all_20210930.csv"
+  elsif ARGV[0] == "神奈川県"
+    file_name = "14_kanagawa_all_20211029.csv"
   end
 
   CSV.foreach("corporate-number-list/#{file_name}").with_index(1) do |row, ln|
@@ -184,6 +186,11 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     city = row[10]
     corporate_name = row[6]
     next if corporate_name == "西東京市" or corporate_name == "瑞穂町" or corporate_name == "日の出町" or corporate_name == "利島村" or corporate_name == "青梅" or corporate_name == "箱根ケ崎財産区"
+    #if ln < 243
+    #  next
+    #else
+    #  binding.pry
+    #end
 
     #corporate_number = "6140001005714"
     #city = "神戸市中央区"
@@ -239,11 +246,7 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
 
     prefecture_title = page.at_css("h3.title:contains('#{ARGV[0]}')")
     detail_root = nil
-    if ARGV[0] == "東京都"
-      detail_root = prefecture_title.parent.next_sibling.next_sibling
-    else
-      detail_root = prefecture_title.parent.next_sibling.next_sibling.next_sibling.next_sibling
-    end
+    detail_root = prefecture_title.parent.next_sibling.next_sibling
 
     city_link = detail_root.at_css("a:contains('#{city}')")
     next if city_link.nil?
@@ -251,6 +254,10 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     #try_count = 0
     link_url = city_link.attributes["href"].nil? ? (city_link.attributes["hre"].nil? ? nil : city_link.attributes["hre"].value) : city_link.attributes["href"].value
     next if link_url.nil?
+    if link_url.include?('/ist_')
+      link_url = link_url.sub('/ist_', '/list_')
+    end
+
     begin
       city_page = agent.get("https://unisonas.com/#{link_url}")
     rescue Mechanize::ResponseCodeError => e
@@ -343,19 +350,14 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
     # ユニゾナス 詳細ページ以降
     table_element = uni_page.at('table.statsDay')
 
-    if ARGV[0] == "東京都"
-      category_header = table_element.at_css("th:contains('カテゴリ')")
-      next if category_header.nil?
-      category_elem = category_header.next_sibling
-      category = category_elem.text
-      next unless category.include?(ARGV[1] == "製造業" ? "製造" : "流通")
-    else 
-      code_header = table_element.at_css("th:contains('産業分類主業コード')")
-      next if code_header.nil?
-      code_elem = code_header.next_sibling
-      main_code = code_elem.text[0..1].to_i
-      next unless is_category_valid?(ARGV[1], main_code)
-      category = code_name_map[code_elem.text[0..1]]
+    category_header = table_element.at_css("th:contains('カテゴリ')")
+    next if category_header.nil?
+    category_elem = category_header.next_sibling
+    category = category_elem.text
+    if ARGV[1] == "製造業"
+      next unless category.include? "製造"
+    elsif ARGV[1] == "物流・倉庫業"
+      next unless category.include? "運送" or category.include? "貨物" or category.include? "倉庫"
     end
 
     # URL 取得。要 google 課金

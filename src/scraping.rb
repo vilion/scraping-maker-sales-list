@@ -4,45 +4,41 @@ require 'mechanize'
 require 'pry'
 
 agent = Mechanize.new
-#page = agent.get("http://splash:8050/render.html?url=https://google.co.jp&wait=0.5")
+page = agent.get("https://www.wantedly.com/projects?type=mixed&page=1&company_tags%5B%5D=funded3k")
 
-#CSV.foreach("corporate-number-list/28_hyogo_all_20210831.csv") do |row|
-  #corporate_number = row[1]
-  corporate_number = "6140001005714"
-  #form = page.forms[0]
-  #form.ie = "utf-8"
-  #form.q = "#{corporate_number} site:unisonas.com"
-  #form.q = "6140001005714 site:unisonas.com"
-  #form.q = "神戸製鋼 site:unisonas.com"
-  unisonal_result = agent.get("http://splash:8050/render.html?url=https://www.google.com/search?q=#{corporate_number}+%3Asite:unisonas.com")
-  #unisonal_result = agent.submit(form)
-  link = unisonal_result.links.find { |l| l.text.include?("UNISONAS")  }
-  binding.pry
-  #next if link.nil?
-  binding.pry
-  uni_page = link.click
-  table_element = uni_page.at('table.statsDay')
-  code_header = table_element.at_css("th:contains('産業分類主業コード')")
-  #next if code_header.nil?
-  code_elem = code_header.next_sibling
-  main_code = code_elem.text[0..1].to_i
-  binding.pry
-  #next unless 19 <= main_code && main_code <= 39
-  
-  #form.q = row[6]
-  #company_name = row[6]
-  company_name = "株式会社神戸製鋼所"
-  #search_result = agent.submit(form)
-  search_result = agent.get("http://splash:8050/render.html?url=https://www.google.co.jp/search?q=#{company_name}")
-  site_link = search_result.links.find { |l| l.text.include?("ウェブサイト")  }
+#corporate_number = row[1]
+#corporate_number = "6140001005714"
+#main_div = page.divs.find()
 
-  official_url = ""
-  unless site_link.nil?
-    site = site_link.click
-    official_url = site.uri.to_s
-  end
+File.open("3000万円以上調達済みのスタートアップ、ベンチャー企業.csv", 'w') do |file|
+  file.print("\xEF\xBB\xBF")  #bomを作成
+  file.puts(['会社名', 'webサイト', '従業員数', '住所', '調達額', '設立年月'].to_csv)
 
-  address = table_element.at_css("th:contains('所在地')").next_sibling.text
-  tel_no = table_element.at_css("th:contains('電話番号')").next_sibling.text
+  begin
+    company_link_list = page.links.filter do |l|
+      !l.href.nil? && l.href.include?("funded3k") && l.href.include?("filter_type") && l.href.include?("company_tags")
+    end
 
-#end
+    company_link_list.each do | link |
+      co_page = link.click
+      name = co_page.at_css("div.company-name").text.gsub("\n","")
+      description_list = co_page.at("div.company-info-list").css("div.company-description").children
+      start_year_month = description_list[3].text.gsub("\n","")
+      member_count_elem = description_list.find {|e| e.text.include?("人のメンバー") }
+      member_count = !member_count_elem.nil? ? member_count_elem.text.gsub("\n","") : "従業員数不明"
+      address = description_list.last.text.gsub("\n","")
+      website = description_list[1].attribute("href").value
+      funded = description_list.find_all {|e| e.text.include?("資金") }.last.text.gsub("\n","").gsub(" /","")
+      file.puts([name, website, member_count, address, funded, start_year_month].to_csv)
+      file.flush()
+    end
+
+    next_link = page.links.find { |l| l.attribute("rel").value == "next" }
+    page = !next_link.nil? ? next_link.click : nil
+
+  end while !page.nil?
+
+end
+
+
+

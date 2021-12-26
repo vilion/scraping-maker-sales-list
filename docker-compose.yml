@@ -1,9 +1,9 @@
 version: '3.7'
 
 services:
-  scraping-app:
+  scraping-app_real_estate:
     build:
       context: ./
       dockerfile: ./Dockerfile
     volumes:
-      - ./:/scraping-app
+      - ./:/scraping-app_real_estate

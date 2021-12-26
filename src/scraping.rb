@@ -358,6 +358,8 @@ File.open("#{ARGV[0]}内の#{ARGV[1]}の会社リスト.csv", 'w') do |file|
       next unless category.include? "製造"
     elsif ARGV[1] == "物流・倉庫業"
       next unless category.include? "運送" or category.include? "貨物" or category.include? "倉庫"
+    elsif ARGV[1] == "不動産"
+      next unless category.include? "不動産"
     end
 
     # URL 取得。要 google 課金

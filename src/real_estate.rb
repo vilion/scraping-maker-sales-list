@@ -12,34 +12,31 @@ end
 session = Capybara::Session.new(:poltergeist)
 
 #count = 0
-begin
-  session.visit "https://etsuran.mlit.go.jp/TAKKEN/chintaiKensaku.do"
-rescue Net::HTTPForbidden
-  sleep 1
-  retry
-  #puts “  caught Excepcion !”
-  #next
-  #try_count += 1
-  #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
-rescue Exception => e
-  sleep 1
-  retry
-  #puts “  caught Excepcion !”
-  #next
-  #next if try_count == 4
-  #try_count += 1
-end
-
-select_pref = session.find("select#kenCode")
-option_list = select_pref.find_all("option")
-
-pref_list_size = option_list.size
 
 (1..47).each do | pref_index |
+  begin
+    session.visit "https://etsuran.mlit.go.jp/TAKKEN/chintaiKensaku.do"
+  rescue Net::HTTPForbidden
+    sleep 1
+    retry
+    #puts “  caught Excepcion !”
+    #next
+    #try_count += 1
+    #retry if try_count != 5 # 上手くアクセスできないときはもう1回！
+  rescue Exception => e
+    sleep 1
+    retry
+    #puts “  caught Excepcion !”
+    #next
+    #next if try_count == 4
+    #try_count += 1
+  end
+
   select_pref = session.find("select#kenCode")
   option_list = select_pref.find_all("option")
   option = option_list[pref_index]
   pref = option.text[3..]
+  option.select_option
 
   select = session.find("select#sortValue")
   select.find("option[value='4']").select_option
